@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Cloud Notebook — Sheet Sync</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel-hover: #334155;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --success: #22c55e;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* LOGIN SCREEN */
+    #auth-screen {
+      margin: auto;
+      width: 92%;
+      max-width: 400px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 24px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    #auth-screen h1 {
+      font-size: 1.4rem;
+      margin-bottom: 6px;
+    }
+
+    #auth-screen p {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .form-group input:focus {
+      border-color: var(--accent);
+    }
+
+    .auth-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: 0.15s ease;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0f172a;
+      flex: 1;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: var(--panel-hover);
+      color: var(--text);
+      flex: 1;
+    }
+
+    .btn-secondary:hover {
+      background: #475569;
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+    }
+
+    .btn-danger:hover {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    #auth-msg {
+      margin-top: 14px;
+      font-size: 0.85rem;
+      color: #fca5a5;
+      min-height: 20px;
+      text-align: center;
+    }
+
+    /* WORKSPACE LAYOUT */
+    #app-screen {
+      display: none;
+      height: 100dvh;
+      width: 100%;
+      flex-direction: column;
+    }
+
+    header {
+      height: 54px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .header-left, .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #menu-toggle {
+      display: none;
+      background: var(--panel-hover);
+      color: var(--text);
+      padding: 7px 10px;
+    }
+
+    .user-badge {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .user-badge strong {
+      color: var(--accent);
+    }
+
+    #sync-status {
+      font-size: 0.78rem;
+      padding: 4px 8px;
+      border-radius: 99px;
+      background: rgba(148, 163, 184, 0.15);
+      color: var(--muted);
+    }
+
+    .workspace {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* SIDEBAR */
+    aside {
+      width: 250px;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-top {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-top button {
+      width: 100%;
+    }
+
+    #page-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      list-style: none;
+    }
+
+    .page-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .page-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+
+    .page-item.active {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .page-item span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* EDITOR AREA */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    #page-title {
+      flex: 1;
+      min-width: 160px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text);
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 6px 8px;
+      border-radius: 6px;
+      outline: none;
+    }
+
+    #page-title:focus {
+      border-color: var(--border);
+      background: var(--panel);
+    }
+
+    #page-content {
+      flex: 1;
+      width: 100%;
+      background: var(--bg);
+      color: var(--text);
+      border: none;
+      padding: 16px;
+      font-size: 1rem;
+      line-height: 1.6;
+      resize: none;
+      outline: none;
+      overflow-y: auto;
+    }
+
+    footer {
+      height: 34px;
+      border-top: 1px solid var(--border);
+      background: var(--panel);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    /* MOBILE RESPONSIVENESS */
+    @media (max-width: 768px) {
+      #menu-toggle {
+        display: inline-block;
+      }
+      aside {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 20;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+        box-shadow: 8px 0 24px rgba(0, 0, 0, 0.5);
+      }
+      aside.open {
+        transform: translateX(0);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. LOGIN / REGISTER SCREEN -->
+  <div id="auth-screen">
+    <h1>Cloud Notebook</h1>
+    <p>Log in to load your saved pages or create a new ID to start fresh.</p>
+    <div class="form-group">
+      <label for="username">Notebook ID / Username</label>
+      <input type="text" id="username" placeholder="e.g. karan_notes" autocomplete="username" />
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Enter password" autocomplete="current-password" />
+    </div>
+    <div class="auth-actions">
+      <button class="btn-primary" id="login-btn" onclick="handleAuth('login')">Login</button>
+      <button class="btn-secondary" id="register-btn" onclick="handleAuth('register')">Create New ID</button>
+    </div>
+    <div id="auth-msg"></div>
+  </div>
+
+  <!-- 2. NOTEBOOK WORKSPACE -->
+  <div id="app-screen">
+    <header>
+      <div class="header-left">
+        <button id="menu-toggle" onclick="toggleSidebar()">Pages</button>
+        <span class="user-badge">ID: <strong id="display-user"></strong></span>
+      </div>
+      <div class="header-right">
+        <span id="sync-status">Synced</span>
+        <button class="btn-primary" onclick="syncToSheet()">Save Now</button>
+        <button class="btn-secondary" onclick="logout()">Logout</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside id="sidebar">
+        <div class="sidebar-top">
+          <button class="btn-primary" onclick="createNewPage()">+ New Page</button>
+        </div>
+        <ul id="page-list"></ul>
+      </aside>
+
+      <main>
+        <div class="editor-toolbar">
+          <input type="text" id="page-title" placeholder="Page Title..." oninput="handleEditorInput()" />
+          <button class="btn-secondary" id="copy-btn" onclick="copyCurrentPage()">Copy Text</button>
+          <button class="btn-danger" onclick="deleteCurrentPage()">Delete Page</button>
+        </div>
+        <textarea id="page-content" placeholder="Write or paste anything here..." oninput="handleEditorInput()"></textarea>
+        <footer>
+          <span id="char-count">0 characters</span>
+          <span>Auto-saves 2s after typing</span>
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================
+    // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL BELOW
+    // =========================================================
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyfephiCKSmgchEKMxnZ5v5ClpXnRGg19Zkx-iIIOTzOHqGuGGt3DrUyfxwgo6PRLytxQ/exec";
+
+    let currentUser = "";
+    let currentPass = "";
+    let pages = [];
+    let activePageId = null;
+    let saveTimeout = null;
+
+    async function apiCall(payload) {
+      // Sending as text/plain avoids CORS preflight rejection on Google Apps Script
+      const response = await fetch(SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+      return await response.json();
+    }
+
+    async function handleAuth(action) {
+      const userEl = document.getElementById("username");
+      const passEl = document.getElementById("password");
+      const msgEl = document.getElementById("auth-msg");
+
+      const username = userEl.value.trim().toLowerCase();
+      const password = passEl.value;
+
+      if (!username || !password) {
+        msgEl.textContent = "Please enter both an ID and password.";
+        return;
+      }
+
+      if (SCRIPT_URL.includes("PASTE_YOUR_GOOGLE_SCRIPT")) {
+        msgEl.textContent = "Replace SCRIPT_URL in index.html with your Google Apps Script Web App URL first.";
+        return;
+      }
+
+      msgEl.style.color = "#38bdf8";
+      msgEl.textContent = action === "login" ? "Loading your notebook..." : "Creating new account...";
+
+      try {
+        const res = await apiCall({ action, username, password });
+        if (!res.ok) {
+          msgEl.style.color = "#fca5a5";
+          msgEl.textContent = res.error || "Authentication failed.";
+          return;
+        }
+
+        currentUser = username;
+        currentPass = password;
+        pages = res.pages && res.pages.length > 0 ? res.pages : [{
+          id: "page_" + Date.now(),
+          title: "Page 1",
+          content: "",
+          updatedAt: new Date().toISOString()
+        }];
+
+        activePageId = pages[0].id;
+        openWorkspace();
+      } catch (err) {
+        msgEl.style.color = "#fca5a5";
+        msgEl.textContent = "Network error. Check your Apps Script URL and deployment permissions.";
+      }
+    }
+
+    function openWorkspace() {
+      document.getElementById("auth-screen").style.display = "none";
+      document.getElementById("app-screen").style.display = "flex";
+      document.getElementById("display-user").textContent = currentUser;
+      renderSidebar();
+      loadActivePage();
+    }
+
+    function renderSidebar() {
+      const list = document.getElementById("page-list");
+      list.innerHTML = "";
+      pages.forEach(p => {
+        const li = document.createElement("li");
+        li.className = "page-item" + (p.id === activePageId ? " active" : "");
+        const span = document.createElement("span");
+        span.textContent = p.title || "Untitled Page";
+        li.appendChild(span);
+        li.onclick = () => {
+          activePageId = p.id;
+          renderSidebar();
+          loadActivePage();
+          document.getElementById("sidebar").classList.remove("open");
+        };
+        list.appendChild(li);
+      });
+    }
+
+    function loadActivePage() {
+      const page = pages.find(p => p.id === activePageId);
+      if (!page) return;
+      document.getElementById("page-title").value = page.title;
+      document.getElementById("page-content").value = page.content;
+      updateCharCount();
+    }
+
+    function handleEditorInput() {
+      const page = pages.find(p => p.id === activePageId);
+      if (!page) return;
+
+      page.title = document.getElementById("page-title").value;
+      page.content = document.getElementById("page-content").value;
+      page.updatedAt = new Date().toISOString();
+
+      renderSidebar();
+      updateCharCount();
+      setSyncBadge("Unsaved changes...", "#facc15");
+
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        syncToSheet();
+      }, 2000);
+    }
+
+    function createNewPage() {
+      const newPage = {
+        id: "page_" + Date.now(),
+        title: "Page " + (pages.length + 1),
+        content: "",
+        updatedAt: new Date().toISOString()
+      };
+      pages.push(newPage);
+      activePageId = newPage.id;
+      renderSidebar();
+      loadActivePage();
+      syncToSheet();
+      document.getElementById("sidebar").classList.remove("open");
+    }
+
+    function deleteCurrentPage() {
+      if (pages.length <= 1) {
+        alert("You must keep at least one page in your notebook.");
+        return;
+      }
+      if (!confirm("Delete this page permanently?")) return;
+
+      pages = pages.filter(p => p.id !== activePageId);
+      activePageId = pages[0].id;
+      renderSidebar();
+      loadActivePage();
+      syncToSheet();
+    }
+
+    async function copyCurrentPage() {
+      const text = document.getElementById("page-content").value;
+      const btn = document.getElementById("copy-btn");
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = "Copied!";
+        setTimeout(() => (btn.textContent = "Copy Text"), 1500);
+      } catch {
+        // Fallback for older mobile browsers
+        const textarea = document.getElementById("page-content");
+        textarea.select();
+        document.execCommand("copy");
+        btn.textContent = "Copied!";
+        setTimeout(() => (btn.textContent = "Copy Text"), 1500);
+      }
+    }
+
+    async function syncToSheet() {
+      clearTimeout(saveTimeout);
+      setSyncBadge("Saving...", "#38bdf8");
+      try {
+        const res = await apiCall({
+          action: "savePages",
+          username: currentUser,
+          password: currentPass,
+          pages: pages
+        });
+        if (res.ok) {
+          setSyncBadge("Synced", "#22c55e");
+        } else {
+          setSyncBadge("Save error", "#ef4444");
+        }
+      } catch {
+        setSyncBadge("Offline / Retry", "#ef4444");
+      }
+    }
+
+    function setSyncBadge(text, color) {
+      const badge = document.getElementById("sync-status");
+      badge.textContent = text;
+      badge.style.color = color;
+    }
+
+    function updateCharCount() {
+      const len = document.getElementById("page-content").value.length;
+      document.getElementById("char-count").textContent = len.toLocaleString() + " characters";
+    }
+
+    function toggleSidebar() {
+      document.getElementById("sidebar").classList.toggle("open");
+    }
+
+    function logout() {
+      clearTimeout(saveTimeout);
+      currentUser = "";
+      currentPass = "";
+      pages = [];
+      activePageId = null;
+      document.getElementById("password").value = "";
+      document.getElementById("auth-msg").textContent = "";
+      document.getElementById("app-screen").style.display = "none";
+      document.getElementById("auth-screen").style.display = "block";
+    }
+
+    // Ctrl+S / Cmd+S shortcut for manual save
+    window.addEventListener("keydown", e => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        if (currentUser) {
+          e.preventDefault();
+          syncToSheet();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
